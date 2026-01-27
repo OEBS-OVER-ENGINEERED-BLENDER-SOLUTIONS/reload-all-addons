@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Reload All Addons",
     "author": "Erisol3d",
-    "version": (1, 3, 0),
+    "version": (1, 5, 0),
     "blender": (4, 0, 0),
     "location": "File Menu & Preferences Panel",
     "description": "Reload all enabled addons except this one",
@@ -11,6 +11,76 @@ bl_info = {
 import bpy
 import addon_utils
 from datetime import datetime
+
+
+class RELOAD_AddonExcludeItem(bpy.types.PropertyGroup):
+    name: bpy.props.StringProperty(
+        name="Addon Module Name",
+        description="The module name of the addon to exclude"
+    )
+
+
+class RELOAD_UL_excluded_addons(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            layout.label(text=item.name, icon='PLUGIN')
+        elif self.layout_type in {'GRID'}:
+            layout.alignment = 'CENTER'
+            layout.label(text="", icon='PLUGIN')
+
+
+def addon_search_callback(self, context, edit_text):
+    this_addon = __name__.split('.')[0]
+    items = []
+    
+    # Get all enabled addons except this one
+    for mod in addon_utils.modules():
+        name = mod.__name__
+        if addon_utils.check(name)[1] and name != this_addon:
+            if edit_text.lower() in name.lower():
+                items.append(name)
+    
+    return items
+
+
+class RELOAD_OT_exclude_add(bpy.types.Operator):
+    bl_idname = "reload.exclude_add"
+    bl_label = "Add to Exclude List"
+    bl_description = "Add the selected addon to the exclusion list"
+    bl_options = {'INTERNAL'}
+
+    def execute(self, context):
+        prefs = context.preferences.addons[__name__.split('.')[0]].preferences
+        name = prefs.addon_to_exclude_search
+        
+        if not name:
+            self.report({'WARNING'}, "Please select an addon first")
+            return {'CANCELLED'}
+            
+        # Check if already in list
+        if any(item.name == name for item in prefs.exclude_collection):
+            self.report({'WARNING'}, f"'{name}' is already excluded")
+            return {'CANCELLED'}
+            
+        item = prefs.exclude_collection.add()
+        item.name = name
+        prefs.addon_to_exclude_search = ""
+        return {'FINISHED'}
+
+
+class RELOAD_OT_exclude_remove(bpy.types.Operator):
+    bl_idname = "reload.exclude_remove"
+    bl_label = "Remove from Exclude List"
+    bl_description = "Remove the selected addon from the exclusion list"
+    bl_options = {'INTERNAL'}
+    
+    index: bpy.props.IntProperty()
+
+    def execute(self, context):
+        prefs = context.preferences.addons[__name__.split('.')[0]].preferences
+        prefs.exclude_collection.remove(self.index)
+        prefs.exclude_index = min(max(0, self.index - 1), len(prefs.exclude_collection) - 1)
+        return {'FINISHED'}
 
 
 class ADDONS_OT_reload_all(bpy.types.Operator):
@@ -36,7 +106,7 @@ class ADDONS_OT_reload_all(bpy.types.Operator):
 
         # Get excluded addons from preferences
         prefs = context.preferences.addons[__name__].preferences
-        excluded_names = [name.strip() for name in prefs.exclude_list.split(",") if name.strip()]
+        excluded_names = {item.name for item in prefs.exclude_collection}
 
         # Collect enabled addons
         enabled_addons = []
@@ -149,10 +219,14 @@ class ReloadAddonsPreferences(bpy.types.AddonPreferences):
         update=lambda self, context: update_keymap()
     )
 
-    exclude_list: bpy.props.StringProperty(
-        name="Exclude Addons",
-        description="Comma-separated list of addon module names to exclude from reloading",
-        default=""
+    # Advanced Exclusion Settings
+    exclude_collection: bpy.props.CollectionProperty(type=RELOAD_AddonExcludeItem)
+    exclude_index: bpy.props.IntProperty(name="Exclude Index", default=0)
+    
+    addon_to_exclude_search: bpy.props.StringProperty(
+        name="Addon to Exclude",
+        description="Search for an addon to exclude",
+        search=addon_search_callback
     )
 
     verbose_console: bpy.props.BoolProperty(
@@ -206,9 +280,24 @@ class ReloadAddonsPreferences(bpy.types.AddonPreferences):
         box.label(text="Advanced Settings:", icon='SETTINGS')
         box.prop(self, "verbose_console")
         box.separator()
-        box.label(text="Exclude Addons (comma separated module names):")
-        box.prop(self, "exclude_list", text="")
-
+        
+        # Refined Exclude UI
+        box.label(text="Addons To Exclude:", icon='FILTER')
+        
+        row = box.row(align=True)
+        row.prop(self, "addon_to_exclude_search", text="")
+        row.operator("reload.exclude_add", text="", icon='ADD')
+        
+        row = box.row()
+        row.template_list("RELOAD_UL_excluded_addons", "", self, "exclude_collection", self, "exclude_index")
+        
+        col = row.column(align=True)
+        col.operator("reload.exclude_remove", icon='REMOVE', text="").index = self.exclude_index
+        col.separator()
+        col.operator("reload.exclude_add", icon='SORT_ASC', text="") # Placeholder for the sort icon in image if desired, but functionality is different. 
+        # Actually the image has a sort/toggle icon. Blender's UIList has built-in sort. 
+        # I'll stick to Add/Remove for now as requested. 
+        
         layout.separator()
 
         # Features info
@@ -239,6 +328,10 @@ def draw_reload_in_file_menu(self, context):
 
 
 classes = (
+    RELOAD_AddonExcludeItem,
+    RELOAD_UL_excluded_addons,
+    RELOAD_OT_exclude_add,
+    RELOAD_OT_exclude_remove,
     ADDONS_OT_reload_all,
     ReloadAddonsPreferences,
 )
