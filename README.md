@@ -45,11 +45,6 @@ This keeps the addon generic while still helping with stale UI, stale classes, a
 - **Verbose Reload History**: Console output now includes timestamps, stages used, fallback usage, and failure reasons for easier troubleshooting and bug reports.
 - **Registration Hardening**: Preferences and keymap setup now fail gracefully in clean/headless Blender sessions instead of partially breaking addon registration.
 
-### Current Behavior
-- Uses a staged reload pipeline instead of the older deep-purge-first approach.
-- Adds diagnostics for selected addons directly from the specific-reload list.
-- Prints per-addon status summaries and detailed console history for troubleshooting.
-
 ### v2.3.0 (June 15, 2026)
 - **New Default Hotkeys**: Updated defaults to `Ctrl + Shift + Alt + R` for Reload All, and `Ctrl + Shift + R` for Reload Specific.
 
