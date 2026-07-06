@@ -1012,9 +1012,6 @@ class ADDONS_OT_reload_popup(bpy.types.Operator):
         if prefs is None:
             self.report({'ERROR'}, "Reload All Addons preferences are not available yet")
             return {'CANCELLED'}
-        # Auto-populate if empty
-        if not prefs.select_collection:
-            bpy.ops.reload.select_add_enabled()
         # Open dialog
         return context.window_manager.invoke_props_dialog(self, width=380)
 
