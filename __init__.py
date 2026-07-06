@@ -4,12 +4,80 @@ import bpy
 import addon_utils
 import sys
 import traceback
+import json
+import os
 from datetime import datetime
 
 
 # ---------------------------------------------------------------------------
 # Shared helper
 # ---------------------------------------------------------------------------
+
+def _get_prefs_file_path():
+    return bpy.utils.user_resource('CONFIG', path="oebs_addon_reloader_prefs.json", create=True)
+
+def _save_settings(self=None, context=None):
+    prefs = _get_preferences()
+    if not prefs:
+        return
+    data = {
+        "hotkey_key": prefs.hotkey_key,
+        "hotkey_ctrl": prefs.hotkey_ctrl,
+        "hotkey_shift": prefs.hotkey_shift,
+        "hotkey_alt": prefs.hotkey_alt,
+        "hotkey_spec_key": prefs.hotkey_spec_key,
+        "hotkey_spec_ctrl": prefs.hotkey_spec_ctrl,
+        "hotkey_spec_shift": prefs.hotkey_spec_shift,
+        "hotkey_spec_alt": prefs.hotkey_spec_alt,
+        "verbose_console": prefs.verbose_console,
+        "active_tab": prefs.active_tab,
+        "exclude_collection": [item.name for item in prefs.exclude_collection],
+        "select_collection": [{"name": item.name, "selected": item.selected} for item in prefs.select_collection]
+    }
+    filepath = _get_prefs_file_path()
+    try:
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4)
+    except Exception as e:
+        print(f"Reload All Addons: Failed to save preferences: {e}")
+
+def _load_settings():
+    filepath = _get_prefs_file_path()
+    if not os.path.exists(filepath):
+        return
+    prefs = _get_preferences()
+    if not prefs:
+        return
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        for key in ["hotkey_key", "hotkey_ctrl", "hotkey_shift", "hotkey_alt",
+                    "hotkey_spec_key", "hotkey_spec_ctrl", "hotkey_spec_shift", "hotkey_spec_alt",
+                    "verbose_console", "active_tab"]:
+            if key in data:
+                setattr(prefs, key, data[key])
+        
+        if "exclude_collection" in data:
+            prefs.exclude_collection.clear()
+            for name in data["exclude_collection"]:
+                item = prefs.exclude_collection.add()
+                item.name = name
+                
+        if "select_collection" in data:
+            prefs.select_collection.clear()
+            for item_data in data["select_collection"]:
+                item = prefs.select_collection.add()
+                item.name = item_data.get("name", "")
+                item.selected = item_data.get("selected", True)
+                
+        update_keymap()
+    except Exception as e:
+        print(f"Reload All Addons: Failed to load preferences: {e}")
+
+def _delayed_load_settings():
+    _load_settings()
+    return None
 
 def _get_this_addon():
     return __package__ if __package__ else __name__
@@ -442,6 +510,7 @@ class RELOAD_OT_exclude_add(bpy.types.Operator):
         item = prefs.exclude_collection.add()
         item.name = name
         prefs.addon_to_exclude_search = ""
+        _save_settings()
         return {'FINISHED'}
 
 
@@ -460,6 +529,7 @@ class RELOAD_OT_exclude_remove(bpy.types.Operator):
             return {'CANCELLED'}
         prefs.exclude_collection.remove(self.index)
         prefs.exclude_index = min(max(0, self.index - 1), len(prefs.exclude_collection) - 1)
+        _save_settings()
         return {'FINISHED'}
 
 
@@ -492,6 +562,7 @@ class RELOAD_OT_select_add(bpy.types.Operator):
         item.name = name
         item.selected = True
         prefs.addon_to_select_search = ""
+        _save_settings()
         return {'FINISHED'}
 
 
@@ -510,6 +581,7 @@ class RELOAD_OT_select_remove(bpy.types.Operator):
             return {'CANCELLED'}
         prefs.select_collection.remove(self.index)
         prefs.select_index = min(max(0, self.index - 1), len(prefs.select_collection) - 1)
+        _save_settings()
         return {'FINISHED'}
 
 
@@ -531,8 +603,33 @@ class RELOAD_OT_select_remove_by_name(bpy.types.Operator):
                 prefs.select_collection.remove(idx)
                 prefs.select_index = min(max(0, idx - 1), len(prefs.select_collection) - 1)
                 break
+        _save_settings()
         return {'FINISHED'}
 
+
+
+class RELOAD_OT_select_remove_checked(bpy.types.Operator):
+    """Remove checked addons from the list"""
+    bl_idname = "reload.select_remove_checked"
+    bl_label = "Remove Checked"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        prefs = _get_preferences(context)
+        if not prefs: return {'CANCELLED'}
+        # Iterate backwards
+        for i in range(len(prefs.select_collection)-1, -1, -1):
+            if prefs.select_collection[i].selected:
+                prefs.select_collection.remove(i)
+        
+        # Adjust index safely
+        if prefs.select_index >= len(prefs.select_collection):
+            prefs.select_index = max(0, len(prefs.select_collection) - 1)
+            
+        _save_settings()
+        if context.area:
+            context.area.tag_redraw()
+        return {'FINISHED'}
 
 class RELOAD_OT_select_clear(bpy.types.Operator):
     bl_idname = "reload.select_clear"
@@ -547,6 +644,7 @@ class RELOAD_OT_select_clear(bpy.types.Operator):
             return {'CANCELLED'}
         prefs.select_collection.clear()
         prefs.select_index = 0
+        _save_settings()
         return {'FINISHED'}
 
 
@@ -563,6 +661,7 @@ class RELOAD_OT_select_all(bpy.types.Operator):
             return {'CANCELLED'}
         for item in prefs.select_collection:
             item.selected = True
+        _save_settings()
         return {'FINISHED'}
 
 
@@ -579,6 +678,7 @@ class RELOAD_OT_select_none(bpy.types.Operator):
             return {'CANCELLED'}
         for item in prefs.select_collection:
             item.selected = False
+        _save_settings()
         return {'FINISHED'}
 
 
@@ -604,6 +704,7 @@ class RELOAD_OT_select_add_enabled(bpy.types.Operator):
                 item.selected = True
                 added += 1
         self.report({'INFO'}, f"Added {added} addon(s) to the list")
+        _save_settings()
         return {'FINISHED'}
 
 
@@ -877,6 +978,38 @@ class ADDONS_OT_reload_popup(bpy.types.Operator):
         # Open dialog
         return context.window_manager.invoke_props_dialog(self, width=380)
 
+
+
+class ADDONS_OT_restore_hotkeys(bpy.types.Operator):
+    """Restore hotkeys to default"""
+    bl_idname = "addons.restore_hotkeys"
+    bl_label = "Restore Default Hotkeys"
+    bl_options = {'REGISTER'}
+
+    target: bpy.props.EnumProperty(
+        name="Target Key",
+        items=[
+            ('ALL', "Reload All", ""),
+            ('SPECIFIC', "Reload Specific", ""),
+        ]
+    )
+
+    def execute(self, context):
+        prefs = _get_preferences(context)
+        if prefs is None: return {'CANCELLED'}
+        if self.target == 'ALL':
+            prefs.hotkey_ctrl = True
+            prefs.hotkey_shift = True
+            prefs.hotkey_alt = True
+            prefs.hotkey_key = 'R'
+        else:
+            prefs.hotkey_spec_ctrl = True
+            prefs.hotkey_spec_shift = True
+            prefs.hotkey_spec_alt = False
+            prefs.hotkey_spec_key = 'R'
+        update_keymap()
+        self.report({'INFO'}, "Hotkeys restored to defaults")
+        return {'FINISHED'}
 
 class ADDONS_OT_capture_key(bpy.types.Operator):
     """Click to capture the next keyboard key press"""
@@ -1202,6 +1335,8 @@ def draw_reload_in_file_menu(self, context):
 # ---------------------------------------------------------------------------
 
 classes = (
+    ADDONS_OT_restore_hotkeys,
+    RELOAD_OT_select_remove_checked,
     RELOAD_AddonExcludeItem,
     RELOAD_AddonSelectItem,
     RELOAD_UL_excluded_addons,
@@ -1276,6 +1411,8 @@ def update_keymap():
             except Exception as e:
                 print(f"Reload All Addons: Could not assign '{key_spec}' as key: {e}")
 
+        _save_settings()
+
         # Helper to format keymap string
         def format_hk(ctrl, shift, alt, key):
             parts = []
@@ -1293,10 +1430,12 @@ def register():
         bpy.utils.register_class(cls)
     bpy.types.TOPBAR_MT_file.append(draw_reload_in_file_menu)
     update_keymap()
+    bpy.app.timers.register(_delayed_load_settings, first_interval=0.1)
     print("Reload All Addons: Registered")
 
 
 def unregister():
+    _save_settings()
     for km, kmi in addon_keymaps:
         km.keymap_items.remove(kmi)
     addon_keymaps.clear()
