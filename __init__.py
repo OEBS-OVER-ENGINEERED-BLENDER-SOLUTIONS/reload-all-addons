@@ -14,9 +14,43 @@ from datetime import datetime
 # ---------------------------------------------------------------------------
 
 def _get_prefs_file_path():
-    import os
     config_dir = bpy.utils.user_resource('CONFIG')
     return os.path.join(config_dir, "oebs_addon_reloader_prefs.json")
+
+
+def _ensure_valid_prefs_file_path():
+    filepath = _get_prefs_file_path()
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+    if os.path.isdir(filepath):
+        try:
+            if not os.listdir(filepath):
+                os.rmdir(filepath)
+                print(f"Reload All Addons: Removed stale prefs directory at {filepath}")
+            else:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                backup_path = f"{filepath}.stale_dir_{timestamp}"
+                os.replace(filepath, backup_path)
+                print(f"Reload All Addons: Renamed stale prefs directory to {backup_path}")
+        except Exception as exc:
+            print(f"Reload All Addons: Failed to repair prefs path '{filepath}': {exc}")
+            return None
+
+    return filepath
+
+
+def _format_hotkey(ctrl, shift, alt, key):
+    parts = []
+    if ctrl:
+        parts.append("Ctrl")
+    if shift:
+        parts.append("Shift")
+    if alt:
+        parts.append("Alt")
+    key_name = (key or "").upper().strip()
+    if key_name:
+        parts.append(key_name)
+    return "+".join(parts) if parts else "Unassigned"
 
 def _save_settings(self=None, context=None):
     prefs = _get_preferences()
@@ -36,7 +70,9 @@ def _save_settings(self=None, context=None):
         "exclude_collection": [item.name for item in prefs.exclude_collection],
         "select_collection": [{"name": item.name, "selected": item.selected} for item in prefs.select_collection]
     }
-    filepath = _get_prefs_file_path()
+    filepath = _ensure_valid_prefs_file_path()
+    if not filepath:
+        return
     try:
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4)
@@ -44,7 +80,9 @@ def _save_settings(self=None, context=None):
         print(f"Reload All Addons: Failed to save preferences: {e}")
 
 def _load_settings():
-    filepath = _get_prefs_file_path()
+    filepath = _ensure_valid_prefs_file_path()
+    if not filepath:
+        return
     if not os.path.exists(filepath):
         return
     prefs = _get_preferences()
@@ -1193,6 +1231,12 @@ class ReloadAddonsPreferences(bpy.types.AddonPreferences):
             # Hotkey
             box = layout.box()
             box.label(text="Keyboard Shortcut:", icon='KEYINGSET')
+            current_hotkey = _format_hotkey(
+                self.hotkey_ctrl,
+                self.hotkey_shift,
+                self.hotkey_alt,
+                self.hotkey_key,
+            )
             
             if self.capturing_target == 'ALL':
                 row = box.row()
@@ -1209,12 +1253,6 @@ class ReloadAddonsPreferences(bpy.types.AddonPreferences):
                 res = row.operator("addons.restore_hotkeys", text="", icon='FILE_REFRESH')
                 res.target = 'ALL'
                 
-                hotkey_parts = []
-                if self.hotkey_ctrl:   hotkey_parts.append("Ctrl")
-                if self.hotkey_shift:  hotkey_parts.append("Shift")
-                if self.hotkey_alt:    hotkey_parts.append("Alt")
-                hotkey_parts.append(self.hotkey_key.upper().strip())
-                current_hotkey = "+".join(hotkey_parts)
                 box.label(text=f"Current: {current_hotkey}", icon='HAND')
 
             layout.separator()
@@ -1277,12 +1315,12 @@ class ReloadAddonsPreferences(bpy.types.AddonPreferences):
                 res = row.operator("addons.restore_hotkeys", text="", icon='FILE_REFRESH')
                 res.target = 'SPECIFIC'
                 
-                hotkey_parts = []
-                if self.hotkey_spec_ctrl:   hotkey_parts.append("Ctrl")
-                if self.hotkey_spec_shift:  hotkey_parts.append("Shift")
-                if self.hotkey_spec_alt:    hotkey_parts.append("Alt")
-                hotkey_parts.append(self.hotkey_spec_key.upper().strip())
-                current_hotkey = "+".join(hotkey_parts)
+                current_hotkey = _format_hotkey(
+                    self.hotkey_spec_ctrl,
+                    self.hotkey_spec_shift,
+                    self.hotkey_spec_alt,
+                    self.hotkey_spec_key,
+                )
                 box_hk.label(text=f"Current: {current_hotkey}", icon='HAND')
 
             layout.separator()
@@ -1420,16 +1458,11 @@ def update_keymap():
 
         _save_settings()
 
-        # Helper to format keymap string
-        def format_hk(ctrl, shift, alt, key):
-            parts = []
-            if ctrl:  parts.append("Ctrl")
-            if shift: parts.append("Shift")
-            if alt:   parts.append("Alt")
-            parts.append(key.upper().strip())
-            return "+".join(parts)
-
-        print(f"Reload All Addons: Hotkeys updated - All: {format_hk(prefs.hotkey_ctrl, prefs.hotkey_shift, prefs.hotkey_alt, prefs.hotkey_key)} | Specific: {format_hk(prefs.hotkey_spec_ctrl, prefs.hotkey_spec_shift, prefs.hotkey_spec_alt, prefs.hotkey_spec_key)}")
+        print(
+            "Reload All Addons: Hotkeys updated - "
+            f"All: {_format_hotkey(prefs.hotkey_ctrl, prefs.hotkey_shift, prefs.hotkey_alt, prefs.hotkey_key)} | "
+            f"Specific: {_format_hotkey(prefs.hotkey_spec_ctrl, prefs.hotkey_spec_shift, prefs.hotkey_spec_alt, prefs.hotkey_spec_key)}"
+        )
 
 
 def register():
