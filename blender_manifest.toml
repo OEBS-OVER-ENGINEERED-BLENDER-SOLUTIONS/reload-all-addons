@@ -4,16 +4,16 @@ schema_version = "1.0.0"
 id = "reload_all_addons"
 
 # The version of the extension
-version = "2.3.0"
+version = "2.4.0"
 
 # The name of the extension
-name = "Reload All Addons"
+name = "OEBS Addon Reloader"
 
 # A short description (tagline) of the extension
 tagline = "Reload Blender addons with full memory deep-clean"
 
 # The author(s) of the extension
-maintainer = "Erisol3d"
+maintainer = "OEBS (Eric Mwangi)"
 
 # The type of the extension
 type = "add-on"
