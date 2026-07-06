@@ -1204,6 +1204,8 @@ class ReloadAddonsPreferences(bpy.types.AddonPreferences):
                 row.prop(self, "hotkey_key", text="")
                 op = row.operator("addons.capture_key", text="Record", icon='REC')
                 op.target = 'ALL'
+                res = row.operator("addons.restore_hotkeys", text="", icon='FILE_REFRESH')
+                res.target = 'ALL'
                 
                 hotkey_parts = []
                 if self.hotkey_ctrl:   hotkey_parts.append("Ctrl")
@@ -1270,6 +1272,8 @@ class ReloadAddonsPreferences(bpy.types.AddonPreferences):
                 row.prop(self, "hotkey_spec_key", text="")
                 op = row.operator("addons.capture_key", text="Record", icon='REC')
                 op.target = 'SPECIFIC'
+                res = row.operator("addons.restore_hotkeys", text="", icon='FILE_REFRESH')
+                res.target = 'SPECIFIC'
                 
                 hotkey_parts = []
                 if self.hotkey_spec_ctrl:   hotkey_parts.append("Ctrl")
@@ -1292,6 +1296,7 @@ class ReloadAddonsPreferences(bpy.types.AddonPreferences):
             # Populate / Select All / None row
             row = box.row(align=True)
             row.operator("reload.select_add_enabled", text="Populate All Enabled", icon='PRESET')
+            row.operator("reload.select_remove_checked", text="", icon='X')
             row.operator("reload.select_all", text="", icon='CHECKBOX_HLT')
             row.operator("reload.select_none", text="", icon='CHECKBOX_DEHLT')
 
