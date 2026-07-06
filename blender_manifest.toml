@@ -10,7 +10,7 @@ version = "2.3.0"
 name = "Reload All Addons"
 
 # A short description (tagline) of the extension
-tagline = "Reload all/specific enabled addons with full memory deep-clean, interactive key-recorder, and custom hotkeys"
+tagline = "Reload Blender addons with full memory deep-clean"
 
 # The author(s) of the extension
 maintainer = "Erisol3d"
