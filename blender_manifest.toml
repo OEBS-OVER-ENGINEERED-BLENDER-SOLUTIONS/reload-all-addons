@@ -1,0 +1,33 @@
+schema_version = "1.0.0"
+
+# The unique identifier of the extension
+id = "reload_all_addons"
+
+# The version of the extension
+version = "2.3.0"
+
+# The name of the extension
+name = "Reload All Addons"
+
+# A short description (tagline) of the extension
+tagline = "Reload all/specific enabled addons with full memory deep-clean, interactive key-recorder, and custom hotkeys"
+
+# The author(s) of the extension
+maintainer = "Erisol3d"
+
+# The type of the extension
+type = "add-on"
+
+# A website related to the extension
+website = "https://github.com/OEBS-OVER-ENGINEERED-BLENDER-SOLUTIONS/reload-all-addons"
+
+# Tags to help categorize the extension
+tags = ["Development"]
+
+# The minimum required Blender version
+blender_version_min = "4.2.0"
+
+# The license of the extension
+license = [
+  "SPDX:GPL-2.0-or-later",
+]

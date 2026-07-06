@@ -1,12 +1,4 @@
-bl_info = {
-    "name": "Reload All Addons",
-    "author": "Erisol3d",
-    "version": (2, 3, 0),
-    "blender": (4, 0, 0),
-    "location": "File Menu & Preferences Panel",
-    "description": "Reload all/specific enabled addons with full memory deep-clean, interactive key-recorder, and custom hotkeys",
-    "category": "Development",
-}
+
 
 import bpy
 import addon_utils
