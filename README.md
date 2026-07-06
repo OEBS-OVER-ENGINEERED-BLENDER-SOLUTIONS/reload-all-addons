@@ -1,4 +1,4 @@
-# Reload All Addons
+# OEBS Addon Reloader
 
 A Blender addon designed for developers to quickly reload all enabled addons or selectively reload specific ones. It now uses a staged reload pipeline that prefers Blender's normal disable/enable lifecycle first, then escalates into targeted cleanup only for leftovers that can still be attributed to the addon.
 

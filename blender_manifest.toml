@@ -19,7 +19,7 @@ maintainer = "OEBS (Eric Mwangi)"
 type = "add-on"
 
 # A website related to the extension
-website = "https://github.com/OEBS-OVER-ENGINEERED-BLENDER-SOLUTIONS/reload-all-addons"
+website = "https://github.com/OEBS-OVER-ENGINEERED-BLENDER-SOLUTIONS/oebs-addon-reloader"
 
 # Tags to help categorize the extension
 tags = ["Development"]
