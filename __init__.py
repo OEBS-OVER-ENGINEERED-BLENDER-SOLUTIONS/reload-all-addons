@@ -14,7 +14,9 @@ from datetime import datetime
 # ---------------------------------------------------------------------------
 
 def _get_prefs_file_path():
-    return bpy.utils.user_resource('CONFIG', path="oebs_addon_reloader_prefs.json", create=True)
+    import os
+    config_dir = bpy.utils.user_resource('CONFIG')
+    return os.path.join(config_dir, "oebs_addon_reloader_prefs.json")
 
 def _save_settings(self=None, context=None):
     prefs = _get_preferences()
