@@ -29,5 +29,5 @@ blender_version_min = "4.2.0"
 
 # The license of the extension
 license = [
-  "SPDX:GPL-2.0-or-later",
+  "SPDX:GPL-3.0-or-later",
 ]
